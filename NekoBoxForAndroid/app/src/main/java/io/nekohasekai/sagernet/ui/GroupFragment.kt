@@ -388,9 +388,17 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
             groupName.text = proxyGroup.displayName()
 
             editButton.setOnClickListener {
-                startActivity(Intent(it.context, GroupSettingsActivity::class.java).apply {
-                    putExtra(GroupSettingsActivity.EXTRA_GROUP_ID, group.id)
-                })
+                openGroupSettings(group)
+            }
+
+            // 长按分组名直接进分组设置，省掉去点右上角铅笔
+            groupName.setOnLongClickListener {
+                if (!proxyGroup.ungrouped) {
+                    openGroupSettings(proxyGroup)
+                    true
+                } else {
+                    false
+                }
             }
 
             updateButton.setOnClickListener {
@@ -541,6 +549,14 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
 
             }
 
+        }
+
+        private fun openGroupSettings(group: ProxyGroup) {
+            startActivity(
+                Intent(itemView.context, GroupSettingsActivity::class.java).apply {
+                    putExtra(GroupSettingsActivity.EXTRA_GROUP_ID, group.id)
+                }
+            )
         }
     }
 

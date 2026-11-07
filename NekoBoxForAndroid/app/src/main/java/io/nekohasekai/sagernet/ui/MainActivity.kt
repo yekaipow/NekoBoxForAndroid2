@@ -341,6 +341,13 @@ class MainActivity : ThemedActivity(),
 
             R.id.nav_group -> displayFragment(GroupFragment())
             R.id.nav_route -> displayFragment(RouteFragment())
+            R.id.nav_apps -> {
+                // 分应用代理是一个独立 Activity，不是抽屉里的页面：跳过去后保持原选中项
+                startActivity(Intent(this, AppManagerActivity::class.java))
+                binding.drawerLayout.closeDrawers()
+                return false
+            }
+
             R.id.nav_settings -> displayFragment(SettingsFragment())
             R.id.nav_traffic -> displayFragment(WebviewFragment())
             R.id.nav_tools -> displayFragment(ToolsFragment())

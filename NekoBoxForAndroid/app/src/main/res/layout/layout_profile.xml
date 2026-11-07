@@ -59,6 +59,14 @@
                         tools:text="@string/profile_name" />
                 </LinearLayout>
 
+                <!-- 单列：三个按钮平铺；双列：折叠进 actions_collapsed（见下） -->
+                <LinearLayout
+                    android:id="@+id/actions_expanded"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="top"
+                    android:orientation="horizontal">
+
                 <androidx.appcompat.widget.AppCompatImageView
                     android:id="@+id/edit"
                     android:layout_width="wrap_content"
@@ -106,6 +114,39 @@
                     android:padding="12dp"
                     android:visibility="gone"
                     app:srcCompat="@drawable/ic_action_delete" />
+
+                </LinearLayout>
+
+                <!-- 双列：三个按钮折叠成一个菜单入口，旁边并列分组测速 -->
+                <LinearLayout
+                    android:id="@+id/actions_collapsed"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="top"
+                    android:orientation="horizontal"
+                    android:visibility="gone">
+
+                    <androidx.appcompat.widget.AppCompatImageView
+                        android:id="@+id/actions_more"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="@string/group_action_more"
+                        android:focusable="true"
+                        android:padding="12dp"
+                        app:srcCompat="@drawable/ic_baseline_more_vert_24" />
+
+                    <androidx.appcompat.widget.AppCompatImageView
+                        android:id="@+id/group_url_test"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="@string/group_action_url_test"
+                        android:focusable="true"
+                        android:padding="12dp"
+                        app:srcCompat="@drawable/ic_baseline_speed_24" />
+
+                </LinearLayout>
 
             </LinearLayout>
 

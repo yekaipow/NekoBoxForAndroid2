@@ -32,7 +32,6 @@ import androidx.core.view.size
 import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceDataStore
 import androidx.recyclerview.widget.ItemTouchHelper
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
@@ -60,7 +59,7 @@ import io.nekohasekai.sagernet.fmt.AbstractBean
 import io.nekohasekai.sagernet.fmt.toUniversalLink
 import io.nekohasekai.sagernet.group.GroupUpdater
 import io.nekohasekai.sagernet.group.RawUpdater
-import io.nekohasekai.sagernet.ktx.FixedLinearLayoutManager
+import io.nekohasekai.sagernet.ktx.FixedGridLayoutManager
 import io.nekohasekai.sagernet.ktx.Logs
 import io.nekohasekai.sagernet.ktx.SubscriptionFoundException
 import io.nekohasekai.sagernet.ktx.alert
@@ -262,6 +261,15 @@ class ConfigurationFragment @JvmOverloads constructor(
                     }
                 }
             }
+        }
+    }
+
+    /** 单列 / 双列切换：写入偏好后立即刷新所有选项卡 */
+    fun applyGridView(doubleColumn: Boolean) {
+        if (DataStore.profileGridView == doubleColumn) return
+        DataStore.profileGridView = doubleColumn
+        adapter.groupList.forEach { group ->
+            adapter.groupFragments[group.id]?.applyColumnCount()
         }
     }
 
@@ -1109,7 +1117,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                 return DataStore.serviceState.let { it.canStop || it == BaseService.State.Stopped }
             }
 
-        lateinit var layoutManager: LinearLayoutManager
+        lateinit var layoutManager: FixedGridLayoutManager
         lateinit var configurationListView: RecyclerView
 
         val select by lazy {
@@ -1140,8 +1148,18 @@ class ConfigurationFragment @JvmOverloads constructor(
             } else if (!::configurationListView.isInitialized) {
                 onViewCreated(requireView(), null)
             }
+            applyColumnCount()
             checkOrderMenu()
             configurationListView.requestFocus()
+        }
+
+        /** 按 DataStore 中的偏好同步列数；列数变化后已绑定项需重绘（按钮折叠状态跟着变） */
+        fun applyColumnCount() {
+            if (!::configurationListView.isInitialized || !::layoutManager.isInitialized) return
+            val columns = if (DataStore.profileGridView) 2 else 1
+            if (layoutManager.columns == columns) return
+            layoutManager.columns = columns
+            adapter?.notifyDataSetChanged()
         }
 
         fun checkOrderMenu() {
@@ -1189,13 +1207,32 @@ class ConfigurationFragment @JvmOverloads constructor(
                 updateTo(GroupOrder.BY_DELAY)
                 true
             }
+
+            // 单列 / 双列：写在独立的 menu group 里，与排序互不干扰
+            val parent = pf as? ConfigurationFragment
+            val single = menu.findItem(R.id.action_layout_single)
+            val double = menu.findItem(R.id.action_layout_double)
+            single?.isChecked = !DataStore.profileGridView
+            double?.isChecked = DataStore.profileGridView
+            single?.setOnMenuItemClickListener {
+                it.isChecked = true
+                parent?.applyGridView(false)
+                true
+            }
+            double?.setOnMenuItemClickListener {
+                it.isChecked = true
+                parent?.applyGridView(true)
+                true
+            }
         }
 
         override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
             if (!::proxyGroup.isInitialized) return
 
             configurationListView = view.findViewById(R.id.configuration_list)
-            layoutManager = FixedLinearLayoutManager(configurationListView)
+            layoutManager = FixedGridLayoutManager(
+                configurationListView, if (DataStore.profileGridView) 2 else 1
+            )
             configurationListView.layoutManager = layoutManager
             adapter = ConfigurationAdapter()
             ProfileManager.addListener(adapter!!)
@@ -1563,6 +1600,13 @@ class ConfigurationFragment @JvmOverloads constructor(
             val shareLayer: LinearLayout = view.findViewById(R.id.share_layer)
             val shareButton: ImageView = view.findViewById(R.id.shareIcon)
             val removeButton: ImageView = view.findViewById(R.id.remove)
+            val actionsExpanded: LinearLayout = view.findViewById(R.id.actions_expanded)
+            val actionsCollapsed: LinearLayout = view.findViewById(R.id.actions_collapsed)
+            val actionsMoreButton: ImageView = view.findViewById(R.id.actions_more)
+            val groupUrlTestButton: ImageView = view.findViewById(R.id.group_url_test)
+
+            /** 分享入口的回调；单列直接挂到 shareLayout，双列由折叠菜单调用 */
+            private var shareAction: ((View) -> Unit)? = null
 
             fun bind(proxyEntity: ProxyEntity, trafficData: TrafficData? = null) {
                 val pf = parentFragment as? ConfigurationFragment ?: return
@@ -1694,6 +1738,11 @@ class ConfigurationFragment @JvmOverloads constructor(
                     shareLayout.isGone = true
                 }
 
+                // 双列时三个按钮折叠进一个菜单；单列保持原样
+                val collapsed = DataStore.profileGridView
+                actionsExpanded.isVisible = !collapsed
+                actionsCollapsed.isVisible = collapsed
+
                 runOnDefaultDispatcher {
                     val selected = (selectedItem?.id ?: DataStore.selectedProxy) == proxyEntity.id
                     val started =
@@ -1731,6 +1780,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                     }
 
                     if (!(select || proxyEntity.type == ProxyEntity.TYPE_CHAIN)) {
+                        shareAction = { anchor -> showShare(anchor) }
                         onMainDispatcher {
                             shareLayer.setBackgroundColor(Color.TRANSPARENT)
                             shareButton.setImageResource(R.drawable.ic_social_share)
@@ -1741,9 +1791,110 @@ class ConfigurationFragment @JvmOverloads constructor(
                                 showShare(it)
                             }
                         }
+                    } else {
+                        shareAction = null
                     }
                 }
 
+                bindCollapsedActions()
+            }
+
+            /** 双列模式下的折叠菜单 + 单节点测速 */
+            private fun bindCollapsedActions() {
+                val chain = entity.type == ProxyEntity.TYPE_CHAIN
+
+                // 双列宽度窄，卡片右侧只放两个入口：折叠菜单 + 本节点测速
+                actionsMoreButton.setOnClickListener { anchor ->
+                    // 当前生效的节点不允许编辑/删除，与单列下的置灰一致
+                    val isCurrent = (selectedItem?.id ?: DataStore.selectedProxy) == entity.id &&
+                            DataStore.serviceState.started &&
+                            DataStore.currentProfile == entity.id
+
+                    val popup = PopupMenu(requireContext(), anchor)
+                    popup.menuInflater.inflate(R.menu.profile_actions_menu, popup.menu)
+                    popup.menu.findItem(R.id.action_collapsed_edit).isVisible =
+                        !select && !isCurrent
+                    popup.menu.findItem(R.id.action_collapsed_share).isVisible =
+                        !(select || chain || entity.nekoBean != null)
+                    popup.menu.findItem(R.id.action_collapsed_remove).isVisible =
+                        !select && !isCurrent
+
+                    popup.setOnMenuItemClickListener { item ->
+                        when (item.itemId) {
+                            R.id.action_collapsed_edit -> {
+                                editButton.performClick()
+                                true
+                            }
+
+                            R.id.action_collapsed_share -> {
+                                shareAction?.invoke(anchor)
+                                true
+                            }
+
+                            R.id.action_collapsed_remove -> {
+                                removeButton.performClick()
+                                true
+                            }
+
+                            else -> false
+                        }
+                    }
+                    popup.show()
+                }
+
+                groupUrlTestButton.setOnClickListener {
+                    urlTestSingle()
+                }
+            }
+
+            /**
+             * 只测当前这一个节点：独立启动一个内核实例拨号，结果直接回写到这张卡片。
+             * 与整组测速共用 runningTest 标志，避免同时跑两份。
+             */
+            private fun urlTestSingle() {
+                if (DataStore.runningTest) {
+                    (activity as? MainActivity)?.snackbar(getString(R.string.connection_test_running))?.show()
+                    return
+                }
+                DataStore.runningTest = true
+                val target = entity
+
+                // 立即回显「测试中」，否则单节点拨号期间界面毫无反应
+                target.status = 0
+                adapter?.let { listAdapter ->
+                    val pos = listAdapter.configurationIdList.indexOf(target.id)
+                    if (pos >= 0) listAdapter.notifyItemChanged(pos)
+                }
+
+                runOnDefaultDispatcher {
+                    try {
+                        val ping = UrlTest().doTest(target)
+                        target.status = 1
+                        target.ping = ping
+                    } catch (e: PluginManager.PluginNotFoundException) {
+                        target.status = 2
+                        target.error = e.readableMessage
+                    } catch (e: Exception) {
+                        Logs.w(e)
+                        target.status = 3
+                        target.error = e.readableMessage
+                    }
+
+                    try {
+                        ProfileManager.updateProfile(target)
+                    } catch (e: Exception) {
+                        Logs.w(e)
+                    }
+
+                    DataStore.runningTest = false
+                    onMainDispatcher {
+                        if (!isAdded) return@onMainDispatcher
+                        adapter?.let { listAdapter ->
+                            val pos = listAdapter.configurationIdList.indexOf(target.id)
+                            if (pos >= 0) listAdapter.notifyItemChanged(pos)
+                        }
+                    }
+                }
             }
 
             var currentName = ""

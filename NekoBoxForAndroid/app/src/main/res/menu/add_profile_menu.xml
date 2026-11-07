@@ -125,6 +125,14 @@
                             android:id="@+id/action_order_by_delay"
                             android:title="@string/group_order_by_delay" />
                     </group>
+                    <group android:checkableBehavior="single">
+                        <item
+                            android:id="@+id/action_layout_single"
+                            android:title="@string/group_layout_single" />
+                        <item
+                            android:id="@+id/action_layout_double"
+                            android:title="@string/group_layout_double" />
+                    </group>
                 </menu>
             </item>
         </menu>

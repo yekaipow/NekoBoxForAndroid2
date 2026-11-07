@@ -36,6 +36,9 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var selectedProxy by configurationStore.long(Key.PROFILE_ID)
     var selectedGroup by configurationStore.long(Key.PROFILE_GROUP) { currentGroupId() } // "ungrouped" group id = 1
 
+    /** 节点页是否双列显示，默认单列 */
+    var profileGridView by configurationStore.boolean(Key.PROFILE_GRID_VIEW)
+
     // only in bg process
     var vpnService: VpnService? = null
     var baseService: BaseService.Interface? = null

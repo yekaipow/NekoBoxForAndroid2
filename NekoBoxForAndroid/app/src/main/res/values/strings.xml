@@ -335,6 +335,7 @@
         card</string>
     <string name="clear_traffic_statistics">Clear traffic statistics</string>
     <string name="connection_test">Connection test</string>
+    <string name="connection_test_running">A test is already running</string>
     <string name="connection_test_clear_results">Clear test results</string>
     <string name="connection_test_tcp_ping" translatable="false">TCPing</string>
     <string name="connection_test_tcp_ping_unavailable">TCPing unavailable</string>
@@ -414,6 +415,11 @@
     <string name="group_order_origin">Origin</string>
     <string name="group_order_by_name">By Name</string>
     <string name="group_order_by_delay">By Delay</string>
+    <string name="group_layout_single">Single column</string>
+    <string name="group_layout_double">Two columns</string>
+    <string name="group_action_more">More actions</string>
+    <string name="group_action_url_test">URL test this node</string>
+    <string name="menu_apps">Apps</string>
     <string name="plugin_exists_but_on_shit_system">Profile %s requires the %s plugin, but your
         proprietary equipment vendor (usually surveillance capital giants and malware maker)
         tampered with your Android, making the plugin unusable.</string>

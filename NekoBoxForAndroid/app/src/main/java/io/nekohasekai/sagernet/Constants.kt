@@ -69,6 +69,9 @@ object Key {
     const val PROFILE_GROUP = "profileGroup"
     const val PROFILE_CURRENT = "profileCurrent"
 
+    /** 节点页双列显示；仅在双列时卡片右侧按钮折叠成菜单 */
+    const val PROFILE_GRID_VIEW = "profileGridView"
+
     const val SERVER_ADDRESS = "serverAddress"
     const val SERVER_PORT = "serverPort"
     const val SERVER_USERNAME = "serverUsername"
