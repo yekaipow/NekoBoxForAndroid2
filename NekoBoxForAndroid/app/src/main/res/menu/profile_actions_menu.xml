@@ -7,6 +7,9 @@
         android:id="@+id/action_collapsed_share"
         android:title="@string/share" />
     <item
+        android:id="@+id/action_collapsed_move"
+        android:title="@string/move" />
+    <item
         android:id="@+id/action_collapsed_remove"
         android:title="@string/delete" />
 </menu>

@@ -439,6 +439,9 @@
     <string name="release_wake_lock">释放唤醒锁</string>
     <string name="acquire_wake_lock_summary">保持 CPU 开启</string>
     <string name="move">移动</string>
+    <string name="move_to_group">移动到分组</string>
+    <string name="move_no_target_group">没有可移动到的其它分组</string>
+    <string name="moved_to_group">已移动到 %s</string>
     <string name="subscription_expire">过期: %s</string>
     <string name="update_all_subscription">更新所有订阅</string>
     <string name="exe_prefer_provider">首选插件提供者</string>

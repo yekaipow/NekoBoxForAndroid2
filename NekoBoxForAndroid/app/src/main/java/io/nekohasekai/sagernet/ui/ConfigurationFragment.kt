@@ -21,6 +21,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.widget.PopupMenu
 import androidx.appcompat.widget.SearchView
@@ -1827,6 +1828,8 @@ class ConfigurationFragment @JvmOverloads constructor(
                         !select && !isCurrent
                     popup.menu.findItem(R.id.action_collapsed_share).isVisible =
                         !(select || chain || entity.nekoBean != null)
+                    popup.menu.findItem(R.id.action_collapsed_move).isVisible =
+                        !select && !isCurrent && basicGroupsExceptCurrent().isNotEmpty()
                     popup.menu.findItem(R.id.action_collapsed_remove).isVisible =
                         !select && !isCurrent
 
@@ -1839,6 +1842,11 @@ class ConfigurationFragment @JvmOverloads constructor(
 
                             R.id.action_collapsed_share -> {
                                 shareAction?.invoke(anchor)
+                                true
+                            }
+
+                            R.id.action_collapsed_move -> {
+                                showMoveToGroupDialog()
                                 true
                             }
 
@@ -1856,6 +1864,73 @@ class ConfigurationFragment @JvmOverloads constructor(
                 groupUrlTestButton.setOnClickListener {
                     urlTestSingle()
                 }
+            }
+
+            /**
+             * 可以作为移动目标的其它分组。
+             * 只列 BASIC 分组：订阅分组的节点由订阅内容决定，手动移进去会在下次更新时被冲掉，
+             * 所以与上游 ProfileSettingsActivity 的判断保持一致。
+             */
+            private fun basicGroupsExceptCurrent(): List<ProxyGroup> {
+                val currentGroupId = proxyGroup.id
+                return SagerDatabase.groupDao.allGroups()
+                    .filter { it.type == GroupType.BASIC && it.id != currentGroupId }
+            }
+
+            /** 弹出分组列表，点一下就移动过去（对应菜单里的「移动」） */
+            private fun showMoveToGroupDialog() {
+                val targets = basicGroupsExceptCurrent()
+                if (targets.isEmpty()) {
+                    (activity as? MainActivity)?.snackbar(R.string.move_no_target_group)?.show()
+                    return
+                }
+
+                val names = targets.map { it.displayName() }.toTypedArray()
+                MaterialAlertDialogBuilder(requireContext())
+                    .setTitle(R.string.move_to_group)
+                    .setItems(names) { _, which ->
+                        moveToGroup(targets[which])
+                    }
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show()
+            }
+
+            /** 把当前节点移到目标分组，并刷新两边列表 */
+            private fun moveToGroup(target: ProxyGroup) {
+                val moving = entity
+                val oldGroupId = moving.groupId
+                val newGroupId = target.id
+                if (oldGroupId == newGroupId) return
+
+                val listAdapter = adapter ?: return
+                runOnDefaultDispatcher {
+                    moving.groupId = newGroupId
+                    try {
+                        ProfileManager.updateProfile(moving)
+                    } catch (e: Exception) {
+                        Logs.w(e)
+                        onMainDispatcher {
+                            if (!itemView.isAttachedToWindow) return@onMainDispatcher
+                            toast(e.readableMessage)
+                        }
+                        return@runOnDefaultDispatcher
+                    }
+
+                    // 让两个分组都重新拉一遍，否则要等下次进入页面才刷新
+                    GroupManager.postUpdate(oldGroupId)
+                    GroupManager.postUpdate(newGroupId)
+
+                    onMainDispatcher {
+                        if (!itemView.isAttachedToWindow) return@onMainDispatcher
+                        listAdapter.reloadProfiles()
+                        toast(getString(R.string.moved_to_group, target.displayName()))
+                    }
+                }
+            }
+
+            /** Holder 不是 Fragment，用不了 ktx 里的 Fragment.snackbar 扩展，这里落成 Toast */
+            private fun toast(text: CharSequence) {
+                Toast.makeText(itemView.context, text, Toast.LENGTH_SHORT).show()
             }
 
             /**
@@ -1897,7 +1972,7 @@ class ConfigurationFragment @JvmOverloads constructor(
 
                     listAdapter.testingSingles.remove(target.id)
                     onMainDispatcher {
-                        if (!isAdded) return@onMainDispatcher
+                        if (!itemView.isAttachedToWindow) return@onMainDispatcher
                         notifyTestingState(listAdapter, target.id)
                     }
                 }

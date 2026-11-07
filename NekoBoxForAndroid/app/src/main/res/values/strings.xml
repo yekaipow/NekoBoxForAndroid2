@@ -529,6 +529,9 @@
         Please update!</string>
     <string name="connection_test_delete_unavailable">Clear unavailable</string>
     <string name="move">Move</string>
+    <string name="move_to_group">Move to group</string>
+    <string name="move_no_target_group">No other group to move to</string>
+    <string name="moved_to_group">Moved to %s</string>
     <string name="exe_prefer_provider">Plugin Preferred Provider</string>
     <string name="create_shortcut">Create Shortcut</string>
     <string name="app_tls_version">Subscription Min TLS Version</string>
