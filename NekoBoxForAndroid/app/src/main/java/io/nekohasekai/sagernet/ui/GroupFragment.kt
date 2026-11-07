@@ -62,9 +62,7 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
         groupTouchHelper = ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(
             ItemTouchHelper.UP or ItemTouchHelper.DOWN, ItemTouchHelper.START
         ) {
-            // 不用长按拖拽：长按要留给「打开分组设置」，否则 ItemTouchHelper 会先消费掉长按事件
-            override fun isLongPressDragEnabled(): Boolean = false
-
+            // 长按即拖动排序（恢复默认行为）。分组设置改由铅笔按钮进入。
             override fun getSwipeDirs(
                 recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder
             ): Int {
@@ -404,28 +402,10 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
                 openGroupSettings(group)
             }
 
-            // 长按标题区（分组名/用户名所在整行）直接进分组设置。
-            // 命中区用 group_title_area 而不是 group_name：后者是 wrap_content，
-            // 只有文字本身那一小块能按中，实际很难命中。
-            // 未分组不响应，与铅笔按钮的可见性规则一致。
-            groupTitleArea.setOnLongClickListener {
-                if (proxyGroup.ungrouped) {
-                    false
-                } else {
-                    openGroupSettings(proxyGroup)
-                    true
-                }
-            }
-
-            // 长按卡片其它区域启动拖拽排序：关闭 isLongPressDragEnabled 后需要手动补入口
-            itemView.setOnLongClickListener {
-                if (proxyGroup.ungrouped || proxyGroup.id in GroupUpdater.updating) {
-                    false
-                } else {
-                    groupTouchHelper.startDrag(this@GroupHolder)
-                    true
-                }
-            }
+            // 长按交还给 ItemTouchHelper 做拖动排序，这里不能再挂 OnLongClickListener，
+            // 否则会先于拖拽消费掉长按事件。分组设置只从铅笔按钮进。
+            groupTitleArea.setOnLongClickListener(null)
+            itemView.setOnLongClickListener(null)
 
             updateButton.setOnClickListener {
                 GroupUpdater.startUpdate(proxyGroup, true)

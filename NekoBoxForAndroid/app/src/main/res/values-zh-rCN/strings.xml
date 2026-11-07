@@ -512,4 +512,8 @@
     <string name="open_app_settings">打开系统设置</string>
     <string name="vless_encryption">VLESS 加密层</string>
     <string name="vless_encryption_sum">后量子加密参数，如 mlkem768x25519plus.native.0rtt.&lt;密钥&gt;，留空表示关闭</string>
+    <string name="exit_ip_querying">正在查询出口…</string>
+    <string name="exit_ip_failed">出口信息获取失败</string>
+    <string name="exit_ip_unknown">还没有出口信息</string>
+    <string name="exit_ip_detail">出口 IP：%1$s\n%2$s</string>
 </resources>

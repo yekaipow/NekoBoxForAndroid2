@@ -12,6 +12,45 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content" />
 
+    <!-- 出口信息：连接成功后显示「🇮🇹 IT · 80.174.118.90」，换节点会自动刷新。
+         放在页签上方，因为页签在只有一个分组时是 gone 的 -->
+    <LinearLayout
+        android:id="@+id/exit_info"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?colorPrimary"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingTop="2dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="2dp"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <TextView
+            android:id="@+id/exit_info_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textAppearance="?android:attr/textAppearanceSmall"
+            android:textColor="?whiteOrTextPrimary"
+            tools:text="🇮🇹 IT · 80.174.118.90" />
+
+        <com.google.android.material.progressindicator.CircularProgressIndicator
+            android:id="@+id/exit_info_progress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:indeterminate="true"
+            android:visibility="gone"
+            app:indicatorSize="14dp"
+            app:trackThickness="2dp"
+            tools:visibility="visible" />
+
+    </LinearLayout>
+
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/group_tab"
         android:layout_width="match_parent"

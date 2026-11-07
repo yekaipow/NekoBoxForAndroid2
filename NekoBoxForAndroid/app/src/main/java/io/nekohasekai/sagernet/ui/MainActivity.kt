@@ -378,6 +378,9 @@ class MainActivity : ThemedActivity(),
 
         binding.fab.changeState(state, DataStore.serviceState, animate)
         binding.stats.changeState(state)
+        // 连接状态变化通知节点页，用于触发/清理出口 IP 查询
+        (supportFragmentManager.findFragmentById(R.id.fragment_holder) as? ConfigurationFragment)
+            ?.onServiceStateChanged(state)
         if (msg != null) snackbar(getString(R.string.vpn_error, msg)).show()
     }
 

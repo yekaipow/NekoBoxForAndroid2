@@ -60,6 +60,7 @@ import io.nekohasekai.sagernet.fmt.AbstractBean
 import io.nekohasekai.sagernet.fmt.toUniversalLink
 import io.nekohasekai.sagernet.group.GroupUpdater
 import io.nekohasekai.sagernet.group.RawUpdater
+import io.nekohasekai.sagernet.utils.ExitIpLookup
 import io.nekohasekai.sagernet.ktx.FixedGridLayoutManager
 import io.nekohasekai.sagernet.ktx.Logs
 import io.nekohasekai.sagernet.ktx.SubscriptionFoundException
@@ -98,6 +99,7 @@ import io.nekohasekai.sagernet.widget.UndoSnackbarManager
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
@@ -255,10 +257,103 @@ class ConfigurationFragment @JvmOverloads constructor(
         }
 
         DataStore.profileCacheStore.registerChangeListener(this)
+        // configurationStore 才有 PROFILE_CURRENT：换节点时靠它触发出口 IP 重新查询
+        DataStore.configurationStore.registerChangeListener(this)
+
+        setupExitInfo(view)
+    }
+
+    // ---- 出口 IP 显示 ----
+
+    private lateinit var exitInfo: LinearLayout
+    private lateinit var exitInfoText: TextView
+    private lateinit var exitInfoProgress: android.view.View
+
+    /** 正在查询时用于判断结果是否已过期（换节点后旧请求要丢弃） */
+    private var exitQuerySeq = 0
+
+    /** 上一次已经查过的节点 id，避免同一节点重复请求 */
+    private var exitQueriedProfileId = -1L
+
+    private fun setupExitInfo(view: View) {
+        exitInfo = view.findViewById(R.id.exit_info)
+        exitInfoText = view.findViewById(R.id.exit_info_text)
+        exitInfoProgress = view.findViewById(R.id.exit_info_progress)
+
+        // 点击可看更完整的信息（城市/ISP）
+        exitInfo.setOnClickListener {
+            val text = lastExitResult?.let { r ->
+                getString(R.string.exit_ip_detail, r.ip, r.detail)
+            } ?: getString(R.string.exit_ip_unknown)
+            alert(text).tryToShow()
+        }
+
+        refreshExitInfo()
+    }
+
+    private var lastExitResult: ExitIpLookup.Result? = null
+
+    /** MainActivity 在服务状态变化时调用 */
+    fun onServiceStateChanged(state: BaseService.State) {
+        if (!::exitInfo.isInitialized) return
+        refreshExitInfo()
+    }
+
+    /**
+     * 连接成功 → 查一次；换节点后再次连接 → 重新查。
+     * 未连接时整行隐藏，不占空间。
+     */
+    private fun refreshExitInfo() {
+        val connected = DataStore.serviceState.connected
+        if (!connected) {
+            exitInfo.isVisible = false
+            lastExitResult = null
+            exitQueriedProfileId = -1L
+            exitQuerySeq++
+            return
+        }
+
+        val currentProfile = DataStore.currentProfile
+        // 同一个节点、已经有结果 → 直接沿用
+        if (currentProfile == exitQueriedProfileId && lastExitResult != null) {
+            exitInfo.isVisible = true
+            exitInfoProgress.isVisible = false
+            exitInfoText.text = lastExitResult!!.display
+            return
+        }
+
+        exitQueriedProfileId = currentProfile
+        exitInfo.isVisible = true
+        exitInfoText.text = getString(R.string.exit_ip_querying)
+        exitInfoProgress.isVisible = true
+
+        val seq = ++exitQuerySeq
+        runOnDefaultDispatcher {
+            // 刚连上时 socks 通道可能还没就绪，稍等一下再查
+            delay(1200L)
+            val result = ExitIpLookup.query()
+            onMainDispatcher {
+                if (!isAdded) return@onMainDispatcher
+                // 期间又换了节点/断开，丢弃这次结果
+                if (seq != exitQuerySeq) return@onMainDispatcher
+                exitInfoProgress.isVisible = false
+                if (result != null) {
+                    lastExitResult = result
+                    exitInfoText.text = result.display
+                } else {
+                    exitInfoText.text = getString(R.string.exit_ip_failed)
+                }
+            }
+        }
     }
 
     override fun onPreferenceDataStoreChanged(store: PreferenceDataStore, key: String) {
         runOnMainDispatcher {
+            // 换节点：currentProfile 变了就重新查出口
+            if (key == Key.PROFILE_CURRENT) {
+                refreshExitInfo()
+                return@runOnMainDispatcher
+            }
             // editingGroup
             if (key == Key.PROFILE_GROUP) {
                 val targetId = DataStore.editingGroup
@@ -286,6 +381,7 @@ class ConfigurationFragment @JvmOverloads constructor(
 
     override fun onDestroy() {
         DataStore.profileCacheStore.unregisterChangeListener(this)
+        DataStore.configurationStore.unregisterChangeListener(this)
 
         if (::adapter.isInitialized) {
             GroupManager.removeListener(adapter)
