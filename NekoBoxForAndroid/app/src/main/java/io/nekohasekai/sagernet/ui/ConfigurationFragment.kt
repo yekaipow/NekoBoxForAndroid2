@@ -215,7 +215,17 @@ class ConfigurationFragment @JvmOverloads constructor(
             if (adapter.groupList.size > position) {
                 tab.text = adapter.groupList[position].displayName()
             }
-            tab.view.setOnLongClickListener { // clear toast
+            // 长按页签上的分组名直接进该分组的设置。
+            // 返回 true 同时保留原来「吞掉长按」的效果（避免弹出 tab 的 tooltip）。
+            tab.view.setOnLongClickListener {
+                val group = adapter.groupList.getOrNull(position)
+                if (group != null && !group.ungrouped) {
+                    startActivity(
+                        Intent(requireContext(), GroupSettingsActivity::class.java).apply {
+                            putExtra(GroupSettingsActivity.EXTRA_GROUP_ID, group.id)
+                        }
+                    )
+                }
                 true
             }
         }.attach()
@@ -1829,7 +1839,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                     popup.menu.findItem(R.id.action_collapsed_share).isVisible =
                         !(select || chain || entity.nekoBean != null)
                     popup.menu.findItem(R.id.action_collapsed_move).isVisible =
-                        !select && !isCurrent && basicGroupsExceptCurrent().isNotEmpty()
+                        !select && !isCurrent && candidateGroups().isNotEmpty()
                     popup.menu.findItem(R.id.action_collapsed_remove).isVisible =
                         !select && !isCurrent
 
@@ -1867,30 +1877,56 @@ class ConfigurationFragment @JvmOverloads constructor(
             }
 
             /**
-             * 可以作为移动目标的其它分组。
-             * 只列 BASIC 分组：订阅分组的节点由订阅内容决定，手动移进去会在下次更新时被冲掉，
-             * 所以与上游 ProfileSettingsActivity 的判断保持一致。
+             * 可以移动到的目标分组：排除当前分组即可。
+             *
+             * 不再按 GroupType.BASIC 过滤：大多数用户的节点都放在订阅分组里（截图里的
+             * 「免费4」「小时更新」就是订阅），按 BASIC 过滤会出现「列表里没有任何分组」。
+             * 订阅分组确实会在下次更新时被订阅内容覆盖，所以这一点在对话框里明确提示。
              */
-            private fun basicGroupsExceptCurrent(): List<ProxyGroup> {
+            private fun candidateGroups(): List<ProxyGroup> {
                 val currentGroupId = proxyGroup.id
                 return SagerDatabase.groupDao.allGroups()
-                    .filter { it.type == GroupType.BASIC && it.id != currentGroupId }
+                    .filter { it.id != currentGroupId }
             }
 
             /** 弹出分组列表，点一下就移动过去（对应菜单里的「移动」） */
             private fun showMoveToGroupDialog() {
-                val targets = basicGroupsExceptCurrent()
+                val targets = candidateGroups()
                 if (targets.isEmpty()) {
                     (activity as? MainActivity)?.snackbar(R.string.move_no_target_group)?.show()
                     return
                 }
 
-                val names = targets.map { it.displayName() }.toTypedArray()
+                val labels = targets.map { group ->
+                    if (group.type == GroupType.SUBSCRIPTION) {
+                        getString(R.string.move_target_subscription, group.displayName())
+                    } else {
+                        group.displayName()
+                    }
+                }.toTypedArray()
+
                 MaterialAlertDialogBuilder(requireContext())
                     .setTitle(R.string.move_to_group)
-                    .setItems(names) { _, which ->
-                        moveToGroup(targets[which])
+                    .setItems(labels) { _, which ->
+                        val target = targets[which]
+                        if (target.type == GroupType.SUBSCRIPTION) {
+                            confirmMoveToSubscription(target)
+                        } else {
+                            moveToGroup(target)
+                        }
                     }
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show()
+            }
+
+            /** 订阅分组的节点会被订阅更新覆盖，移动前先确认一次 */
+            private fun confirmMoveToSubscription(target: ProxyGroup) {
+                MaterialAlertDialogBuilder(requireContext())
+                    .setTitle(R.string.move_to_group)
+                    .setMessage(
+                        getString(R.string.move_to_subscription_warning, target.displayName())
+                    )
+                    .setPositiveButton(R.string.yes) { _, _ -> moveToGroup(target) }
                     .setNegativeButton(android.R.string.cancel, null)
                     .show()
             }

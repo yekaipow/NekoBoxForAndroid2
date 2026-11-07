@@ -440,6 +440,8 @@
     <string name="acquire_wake_lock_summary">保持 CPU 开启</string>
     <string name="move">移动</string>
     <string name="move_to_group">移动到分组</string>
+    <string name="move_target_subscription">%s（订阅）</string>
+    <string name="move_to_subscription_warning">%s 是订阅分组，移进去的节点会在下次订阅更新时被清除。仍要继续吗？</string>
     <string name="move_no_target_group">没有可移动到的其它分组</string>
     <string name="moved_to_group">已移动到 %s</string>
     <string name="subscription_expire">过期: %s</string>

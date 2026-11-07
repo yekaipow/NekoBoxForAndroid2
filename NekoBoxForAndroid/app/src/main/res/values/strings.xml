@@ -530,6 +530,8 @@
     <string name="connection_test_delete_unavailable">Clear unavailable</string>
     <string name="move">Move</string>
     <string name="move_to_group">Move to group</string>
+    <string name="move_target_subscription">%s (subscription)</string>
+    <string name="move_to_subscription_warning">%s is a subscription group. Nodes moved here will be removed the next time the subscription updates. Continue?</string>
     <string name="move_no_target_group">No other group to move to</string>
     <string name="moved_to_group">Moved to %s</string>
     <string name="exe_prefer_provider">Plugin Preferred Provider</string>
