@@ -106,7 +106,10 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
                 super.clearView(recyclerView, viewHolder)
                 groupAdapter.commitMove()
             }
-        }).attachToRecyclerView(groupListView)
+        })
+
+        // attachToRecyclerView 返回 Unit，不能和上面的赋值写成一条链式表达式
+        groupTouchHelper.attachToRecyclerView(groupListView)
 
     }
 
@@ -419,7 +422,7 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
                 if (proxyGroup.ungrouped || proxyGroup.id in GroupUpdater.updating) {
                     false
                 } else {
-                    groupTouchHelper.startDrag(this)
+                    groupTouchHelper.startDrag(this@GroupHolder)
                     true
                 }
             }
