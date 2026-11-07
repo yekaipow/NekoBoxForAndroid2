@@ -279,7 +279,7 @@
     <string name="always_show_address_sum">始终在配置卡片上显示服务器地址</string>
     <string name="clear_traffic_statistics">清空流量统计数据</string>
     <string name="connection_test">连接测试</string>
-    <string name="connection_test_running">已有测试在进行中</string>
+    <string name="url_test_in_progress">正在测试…</string>
     <string name="connection_test_clear_results">清理测试结果</string>
     <string name="connection_test_domain_not_found">域名不存在</string>
     <string name="connection_test_tcp_ping_unavailable">TCPing 不可用</string>
@@ -357,6 +357,7 @@
     <string name="group_order_origin">原始</string>
     <string name="group_order_by_name">以名称</string>
     <string name="group_order_by_delay">以延时</string>
+    <string name="group_layout">显示方式</string>
     <string name="group_layout_single">单列显示</string>
     <string name="group_layout_double">双列显示</string>
     <string name="group_action_more">更多操作</string>

@@ -125,6 +125,12 @@
                             android:id="@+id/action_order_by_delay"
                             android:title="@string/group_order_by_delay" />
                     </group>
+                </menu>
+            </item>
+            <item
+                android:id="@+id/action_layout"
+                android:title="@string/group_layout">
+                <menu>
                     <group android:checkableBehavior="single">
                         <item
                             android:id="@+id/action_layout_single"

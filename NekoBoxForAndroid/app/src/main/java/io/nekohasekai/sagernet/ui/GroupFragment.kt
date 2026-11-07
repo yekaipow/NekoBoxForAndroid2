@@ -59,9 +59,12 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
 
         undoManager = UndoSnackbarManager(activity, groupAdapter)
 
-        ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(
+        groupTouchHelper = ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(
             ItemTouchHelper.UP or ItemTouchHelper.DOWN, ItemTouchHelper.START
         ) {
+            // 不用长按拖拽：长按要留给「打开分组设置」，否则 ItemTouchHelper 会先消费掉长按事件
+            override fun isLongPressDragEnabled(): Boolean = false
+
             override fun getSwipeDirs(
                 recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder
             ): Int {
@@ -106,6 +109,12 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
         }).attachToRecyclerView(groupListView)
 
     }
+
+    /**
+     * 长按拖拽关掉了（长按分组名要留给「打开分组设置」），
+     * 改由长按卡片上除分组名以外的区域手动 startDrag。
+     */
+    lateinit var groupTouchHelper: ItemTouchHelper
 
     override fun onMenuItemClick(item: MenuItem): Boolean {
         when (item.itemId) {
@@ -318,6 +327,7 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
         PopupMenu.OnMenuItemClickListener {
 
         lateinit var proxyGroup: ProxyGroup
+        val groupTitleArea = binding.groupTitleArea
         val groupName = binding.groupName
         val groupStatus = binding.groupStatus
         val groupTraffic = binding.groupTraffic
@@ -391,13 +401,26 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
                 openGroupSettings(group)
             }
 
-            // 长按分组名直接进分组设置，省掉去点右上角铅笔
-            groupName.setOnLongClickListener {
-                if (!proxyGroup.ungrouped) {
+            // 长按标题区（分组名/用户名所在整行）直接进分组设置。
+            // 命中区用 group_title_area 而不是 group_name：后者是 wrap_content，
+            // 只有文字本身那一小块能按中，实际很难命中。
+            // 未分组不响应，与铅笔按钮的可见性规则一致。
+            groupTitleArea.setOnLongClickListener {
+                if (proxyGroup.ungrouped) {
+                    false
+                } else {
                     openGroupSettings(proxyGroup)
                     true
-                } else {
+                }
+            }
+
+            // 长按卡片其它区域启动拖拽排序：关闭 isLongPressDragEnabled 后需要手动补入口
+            itemView.setOnLongClickListener {
+                if (proxyGroup.ungrouped || proxyGroup.id in GroupUpdater.updating) {
                     false
+                } else {
+                    groupTouchHelper.startDrag(this)
+                    true
                 }
             }
 

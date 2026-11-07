@@ -1339,6 +1339,9 @@ class ConfigurationFragment @JvmOverloads constructor(
             var configurationIdList: MutableList<Long> = mutableListOf()
             val configurationList = HashMap<Long, ProxyEntity>()
 
+            /** 正在单节点测速的 profileId，允许并发多个；用于防重复点击和渲染「测试中」 */
+            val testingSingles: MutableSet<Long> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+
             private fun getItem(profileId: Long): ProxyEntity {
                 var profile = configurationList[profileId]
                 if (profile == null) {
@@ -1713,6 +1716,14 @@ class ConfigurationFragment @JvmOverloads constructor(
                     profileStatus.setOnClickListener(null)
                 }
 
+                // 正在单节点测速：盖掉上面的结果，明确显示「测试中」
+                if (adapter?.testingSingles?.contains(proxyEntity.id) == true) {
+                    profileStatus.text = getString(R.string.url_test_in_progress)
+                    profileStatus.setTextColor(
+                        requireContext().getColorAttr(android.R.attr.textColorSecondary)
+                    )
+                }
+
                 editButton.setOnClickListener {
                     it.context.startActivity(
                         proxyEntity.settingIntent(
@@ -1849,22 +1860,20 @@ class ConfigurationFragment @JvmOverloads constructor(
 
             /**
              * 只测当前这一个节点：独立启动一个内核实例拨号，结果直接回写到这张卡片。
-             * 与整组测速共用 runningTest 标志，避免同时跑两份。
+             *
+             * 不使用 DataStore.runningTest：那个标志是「整组测速」的全局互斥，
+             * 单节点测速允许多个同时进行（每张卡各跑各的），只用 testingSingles
+             * 记录哪些节点正在测，防止同一个节点被连点两次。
              */
             private fun urlTestSingle() {
-                if (DataStore.runningTest) {
-                    (activity as? MainActivity)?.snackbar(getString(R.string.connection_test_running))?.show()
-                    return
-                }
-                DataStore.runningTest = true
                 val target = entity
+                val listAdapter = adapter ?: return
 
-                // 立即回显「测试中」，否则单节点拨号期间界面毫无反应
+                // 同一个节点正在测就忽略，避免重复起内核
+                if (!listAdapter.testingSingles.add(target.id)) return
+
                 target.status = 0
-                adapter?.let { listAdapter ->
-                    val pos = listAdapter.configurationIdList.indexOf(target.id)
-                    if (pos >= 0) listAdapter.notifyItemChanged(pos)
-                }
+                notifyTestingState(listAdapter, target.id)
 
                 runOnDefaultDispatcher {
                     try {
@@ -1886,15 +1895,17 @@ class ConfigurationFragment @JvmOverloads constructor(
                         Logs.w(e)
                     }
 
-                    DataStore.runningTest = false
+                    listAdapter.testingSingles.remove(target.id)
                     onMainDispatcher {
                         if (!isAdded) return@onMainDispatcher
-                        adapter?.let { listAdapter ->
-                            val pos = listAdapter.configurationIdList.indexOf(target.id)
-                            if (pos >= 0) listAdapter.notifyItemChanged(pos)
-                        }
+                        notifyTestingState(listAdapter, target.id)
                     }
                 }
+            }
+
+            private fun notifyTestingState(listAdapter: ConfigurationAdapter, profileId: Long) {
+                val pos = listAdapter.configurationIdList.indexOf(profileId)
+                if (pos >= 0) listAdapter.notifyItemChanged(pos)
             }
 
             var currentName = ""

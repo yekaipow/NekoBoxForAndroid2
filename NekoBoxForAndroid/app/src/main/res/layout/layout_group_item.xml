@@ -28,6 +28,7 @@
             android:orientation="horizontal">
 
             <LinearLayout
+                android:id="@+id/group_title_area"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -42,6 +43,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="8dp"
+                    android:longClickable="true"
                     android:textAppearance="?android:attr/textAppearanceMedium"
                     android:textColor="?android:attr/textColorPrimary"
                     android:textStyle="bold"
